@@ -1,18 +1,13 @@
-
-
-
 # Configure the AWS Provider
 provider "aws" {
-  region = "us-east-1"
+  region     = "us-east-1"
   access_key = "AKIAXTEQ77JXUOSPHD4D"
   secret_key = "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"
 }
 
-resource "aws_instance" "project-1" {
+resource "aws_instance" "project-0" {
   ami           = "ami-02e136e904f3da870"
   instance_type = "t2.micro"
-
-  
 }
 
 
@@ -20,7 +15,7 @@ resource "aws_instance" "project-1" {
 
 resource "aws_vpc" "prod-vpc" {
   cidr_block = "10.0.0.0/16"
-  tags =  {
+  tags = {
     name = "production"
   }
 }
@@ -38,19 +33,7 @@ resource "aws_route_table" "prod-route-table" {
   vpc_id = aws_vpc.prod-vpc.id
 
   route = [
-      {
-      cidr_block = "0.0.0.0/0"
-      gateway_id = aws_internet_gateway.gw.id
-    }
-    
-  ,
-    {
-      ipv6_cidr_block        = "::/0"
-      gateway_id = aws_internet_gateway.gw.id
-    }
-
-    ]
-  
+  ]
 
   tags = {
     Name = "production"
@@ -62,8 +45,8 @@ resource "aws_route_table" "prod-route-table" {
 # 4.create subnet
 
 resource "aws_subnet" "subnet-1" {
-  vpc_id     = aws_vpc.prod-vpc.id
-  cidr_block = "10.0.1.0/24"
+  vpc_id            = aws_vpc.prod-vpc.id
+  cidr_block        = "10.0.1.0/24"
   availability_zone = "us-east-1a"
 
   tags = {
@@ -90,27 +73,32 @@ resource "aws_security_group" "allow_web" {
       to_port          = 443
       protocol         = "tcp"
       cidr_blocks      = ["0.0.0.0/0"]
-      
-    }
-  ]
-  ingress = [
+      ipv6_cidr_blocks = [aws_vpc.prod-vpc.ipv6_cidr_block]
+      prefix_list_ids  = []
+      security_groups  = []
+      self             = true
+    },
     {
       description      = "SSH"
       from_port        = 22
       to_port          = 22
       protocol         = "tcp"
       cidr_blocks      = ["0.0.0.0/0"]
-      
-    }
-  ]
-  ingress = [
+      ipv6_cidr_blocks = [aws_vpc.prod-vpc.ipv6_cidr_block]
+      prefix_list_ids  = []
+      security_groups  = []
+      self             = true
+    },
     {
       description      = "HTTP"
       from_port        = 80
       to_port          = 80
       protocol         = "tcp"
       cidr_blocks      = ["0.0.0.0/0"]
-      
+      ipv6_cidr_blocks = [aws_vpc.prod-vpc.ipv6_cidr_block]
+      prefix_list_ids  = []
+      security_groups  = []
+      self             = true
     }
   ]
 
@@ -120,7 +108,11 @@ resource "aws_security_group" "allow_web" {
       to_port          = 0
       protocol         = "-1"
       cidr_blocks      = ["0.0.0.0/0"]
-      
+      description      = ""
+      ipv6_cidr_blocks = [aws_vpc.prod-vpc.ipv6_cidr_block]
+      prefix_list_ids  = []
+      security_groups  = []
+      self             = true
     }
   ]
 
@@ -151,26 +143,23 @@ resource "aws_instance" "project-1" {
   ami               = "ami-02e136e904f3da870"
   instance_type     = "t2.micro"
   availability_zone = "us-east-1a"
-  key_name =        = "project"
+  key_name          = "project"
 
   network_interface {
 
-     device_index = 0
-     network_interface_id     = aws_network_interface.web-server-nginx.id
+    device_index         = 0
+    network_interface_id = aws_network_interface.web-server-nginx.id
   }
 
+  user_data = <<EOF
+    #!/bin/bash
+    sudo yum update -y
+    sudo yum install nginx -y
+    sudo systemctl start nginx 
+    sudo bash -c "echo My first web server >> /var/www/html/index.html "
+  EOF
 
-  user_data  = <<-EOF 
-           #!/bin/bash
-           sudo yum update -y
-           sudo yum install nginx -y
-           sudo systemctl start nginx 
-           sudo bash -c "echo My first web server >> /var/www/html/index.html "
-       EOF
-            
-   tags = {
-         name = "web-server"
-            }
+  tags = {
+    name = "web-server"
+  }
 }
-
-
